@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Research — Vetta Proper Screener</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link href="/static/app.css" rel="stylesheet">
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen">
+
+<header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-20">
+  <div class="max-w-6xl mx-auto px-6 py-3 flex items-center gap-6">
+    <h1 class="text-lg font-semibold tracking-tight text-white">
+      <i class="fas fa-chart-line text-emerald-400 mr-2"></i>Vetta Proper Screener
+    </h1>
+    <nav class="flex gap-4 text-sm">
+      <a href="/" class="text-slate-400 hover:text-slate-200">Screener</a>
+      <a href="/research" class="text-emerald-400 font-medium">Research</a>
+    </nav>
+  </div>
+</header>
+
+<main class="max-w-6xl mx-auto px-6 py-8 space-y-10">
+
+<section>
+  <h2 class="text-2xl font-bold text-white mb-2">How this strategy was derived</h2>
+  <p class="text-slate-400 text-sm leading-relaxed max-w-3xl">
+    Everything on this page comes from backtests against 6.33 million ThetaData
+    end-of-day option records covering 2023. The starting point was a forensic
+    review of 138 real trades that lost <b class="text-red-400">$28,529</b>, plus a
+    line-by-line read of four predecessor repositories.
+  </p>
+</section>
+
+<!-- ============ the loss ============ -->
+<section class="bg-slate-900 border border-slate-800 rounded-lg p-6">
+  <h3 class="text-lg font-semibold text-white mb-4">
+    <i class="fas fa-magnifying-glass text-amber-400 mr-2"></i>Diagnosis of the $28,529 loss
+  </h3>
+  <p class="text-sm text-slate-400 mb-4">
+    The first question asked was whether black swan events caused it.
+    <b class="text-slate-200">They did not.</b> No position suffered a gap
+    attributable to an unforeseeable event. The losses were structural:
+  </p>
+  <div class="grid md:grid-cols-3 gap-4 text-sm">
+    <div class="bg-slate-950 rounded p-4 border border-slate-800">
+      <div class="text-3xl font-bold text-red-400">84%</div>
+      <div class="text-slate-300 font-medium mt-1">Sector concentration</div>
+      <p class="text-xs text-slate-500 mt-2">A single sector produced the large
+      majority of the loss. There was no per-sector cap.</p>
+    </div>
+    <div class="bg-slate-950 rounded p-4 border border-slate-800">
+      <div class="text-3xl font-bold text-red-400">35/75</div>
+      <div class="text-slate-300 font-medium mt-1">Day-one stop-outs</div>
+      <p class="text-xs text-slate-500 mt-2">Round-trip friction ($0.20) against
+      a typical credit ($0.33) made the close quote read 2–3× the credit
+      instantly. Nearly half of all stops fired on entry day.</p>
+    </div>
+    <div class="bg-slate-950 rounded p-4 border border-slate-800">
+      <div class="text-3xl font-bold text-red-400">0</div>
+      <div class="text-slate-300 font-medium mt-1">Real orders placed</div>
+      <p class="text-xs text-slate-500 mt-2">The automated path ran a simulator
+      with synthetic fills. <code class="text-slate-400">broker_execution_enabled</code>
+      was hardcoded <code class="text-slate-400">False</code>. It appeared to work
+      while doing nothing.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ranking model ============ -->
+<section class="bg-slate-900 border border-slate-800 rounded-lg p-6">
+  <h3 class="text-lg font-semibold text-white mb-1">
+    <i class="fas fa-ranking-star text-sky-400 mr-2"></i>The ranking model: delta × risk-reward
+  </h3>
+  <p class="text-sm text-slate-400 mb-5 max-w-3xl">
+    To rank candidates honestly, 2,129 spreads were taken <em>without</em> any
+    ranking, then regressed against return on risk (net P&amp;L ÷ max loss).
+    Using return on risk rather than dollar P&amp;L removes the position-sizing
+    confound.
+  </p>
+
+  <div class="grid md:grid-cols-2 gap-6">
+    <div>
+      <h4 class="text-sm font-semibold text-slate-300 mb-2">Fitted coefficients</h4>
+      <table class="w-full text-xs font-mono">
+        <tbody>
+          <tr class="border-b border-slate-800"><td class="py-1.5 text-slate-400">risk:reward</td><td class="text-right text-emerald-400">+1.1350</td></tr>
+          <tr class="border-b border-slate-800"><td class="py-1.5 text-slate-400">risk:reward²</td><td class="text-right text-emerald-400">+0.2034</td></tr>
+          <tr class="border-b border-slate-800"><td class="py-1.5 text-slate-400">delta</td><td class="text-right text-red-400">−1.2623</td></tr>
+          <tr class="border-b border-slate-800"><td class="py-1.5 text-slate-400">delta²</td><td class="text-right text-emerald-400">+2.3618</td></tr>
+          <tr class="border-b border-slate-800"><td class="py-1.5 text-slate-400">delta × risk:reward</td><td class="text-right text-red-400">−2.5379</td></tr>
+        </tbody>
+      </table>
+      <p class="text-xs text-slate-500 mt-3 leading-relaxed">
+        R² = <b class="text-slate-300">0.063</b>. That is low, and it should be —
+        single-trade outcomes in a ~77% win-rate strategy are dominated by whether
+        the underlying stayed above a strike. What the fit establishes is the
+        <em>shape</em>: risk-reward drives returns, delta is a penalty, and the
+        negative interaction means <b class="text-slate-300">a fat credit is worth
+        much less when you had to go close to the money to get it</b>.
+      </p>
+    </div>
+    <div>
+      <h4 class="text-sm font-semibold text-slate-300 mb-2">Effect of turning ranking on</h4>
+      <p class="text-xs text-slate-500 mb-3">5% sizing, 2 per sector, all else identical.</p>
+      <canvas id="rank-chart" height="150"></canvas>
+      <p class="text-xs text-emerald-400 mt-3">
+        +21.5% net, +3.1pp win rate, identical peak capital at risk.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ cross tab ============ -->
+<section class="bg-slate-900 border border-slate-800 rounded-lg p-6">
+  <h3 class="text-lg font-semibold text-white mb-1">Delta × risk-reward surface</h3>
+  <p class="text-sm text-slate-400 mb-4">
+    Mean return on risk per trade, from the 2,129-trade unranked sample.
+    Green cells are where the money is.
+  </p>
+  <div class="overflow-x-auto">
+    <table class="text-xs" id="xtab"></table>
+  </div>
+  <p class="text-xs text-slate-500 mt-3">
+    Read it along a row: at every delta, moving right (higher risk-reward) improves
+    returns. Read it down a column: at every risk-reward, higher delta generally hurts.
+  </p>
+</section>
+
+<!-- ============ configs ============ -->
+<section class="bg-slate-900 border border-slate-800 rounded-lg p-6">
+  <h3 class="text-lg font-semibold text-white mb-1">
+    <i class="fas fa-flask text-emerald-400 mr-2"></i>Tested configurations
+  </h3>
+  <p class="text-sm text-slate-400 mb-4">
+    Every row is a full backtest. Sort by whichever column matters to you —
+    but read the drawdown and peak-risk columns before the net column.
+  </p>
+  <div class="overflow-x-auto">
+    <table class="w-full text-xs" id="runs-table"></table>
+  </div>
+  <div class="mt-4 bg-red-950/40 border border-red-900 rounded p-3 text-xs text-red-300">
+    <i class="fas fa-triangle-exclamation mr-2"></i>
+    <b>Rows with peak risk above 100% are not executable.</b> They had more capital
+    committed than the account contained, which means a margin call, not a return.
+    They are shown for completeness, not as options.
+  </div>
+</section>
+
+<!-- ============ equity curve ============ -->
+<section class="bg-slate-900 border border-slate-800 rounded-lg p-6">
+  <h3 class="text-lg font-semibold text-white mb-1">Monthly P&amp;L — recommended configuration</h3>
+  <p class="text-sm text-slate-400 mb-4">5% per position, 1 per sector, R:R ≥ 0.20, fitted ranking.</p>
+  <canvas id="monthly-chart" height="90"></canvas>
+  <div class="mt-4 bg-amber-950/40 border border-amber-900 rounded p-3 text-xs text-amber-300">
+    <i class="fas fa-circle-exclamation mr-2"></i>
+    <b>Profit concentration:</b> 86% of all profit came from three months
+    (June, November, December 2023). The other four months were roughly flat.
+    A strategy whose returns depend on a few months is far more fragile than its
+    average expectancy suggests.
+  </div>
+</section>
+
+<!-- ============ limits ============ -->
+<section class="bg-slate-900 border border-amber-900/60 rounded-lg p-6">
+  <h3 class="text-lg font-semibold text-amber-300 mb-3">
+    <i class="fas fa-scale-unbalanced mr-2"></i>What these numbers do not prove
+  </h3>
+  <ul class="text-sm text-slate-300 space-y-2.5 list-disc pl-5 max-w-3xl">
+    <li><b>Seven months, not a year.</b> The option databases cover March,
+        April–June and October–December 2023. Any annual figure is an
+        extrapolation across a gap, not a measured year.</li>
+    <li><b>One regime.</b> 2023 was a recovery year with falling volatility —
+        close to best case for short-premium strategies. There is no 2022, no
+        COVID crash, no 2018 volatility spike in this sample.</li>
+    <li><b>End-of-day data.</b> Entries and exits are modelled on EOD quotes.
+        Intraday adverse moves between decision and fill are invisible.</li>
+    <li><b>Fills are modelled, not observed.</b> 95% of fills assumed at midpoint,
+        5% crossing the spread. Real fills on multi-leg spreads are worse when
+        markets move.</li>
+    <li><b>A bug was found and fixed mid-research.</b> An iron condor sizing
+        error produced a −$73 quadrillion artifact by treating near-zero max loss
+        as tradable. Guards were added and affected results recomputed. This is
+        disclosed rather than hidden because it is exactly the class of error that
+        makes backtests lie.</li>
+    <li><b>Survivorship.</b> The universe is a current index snapshot, so symbols
+        delisted during 2023 are absent.</li>
+  </ul>
+</section>
+
+<footer class="text-center text-xs text-slate-600 pb-8">
+  Research conducted against ThetaData 2023 EOD chains · Full methodology in
+  <code>docs/BACKTEST.md</code>
+</footer>
+</main>
+
+<script src="/static/research.js"></script>
+</body>
+</html>

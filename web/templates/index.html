@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vetta Proper Screener</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
+<link href="/static/app.css" rel="stylesheet">
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen">
+
+<header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur sticky top-0 z-20">
+  <div class="max-w-[1600px] mx-auto px-6 py-3 flex items-center gap-6">
+    <h1 class="text-lg font-semibold tracking-tight text-white">
+      <i class="fas fa-chart-line text-emerald-400 mr-2"></i>Vetta Proper Screener
+    </h1>
+    <nav class="flex gap-4 text-sm">
+      <a href="/" class="text-emerald-400 font-medium">Screener</a>
+      <a href="/research" class="text-slate-400 hover:text-slate-200">Research</a>
+    </nav>
+    <div id="status-pills" class="ml-auto flex gap-2 text-xs"></div>
+  </div>
+</header>
+
+<main class="max-w-[1600px] mx-auto px-6 py-6 grid grid-cols-12 gap-6">
+
+  <!-- ================= criteria panel ================= -->
+  <aside class="col-span-12 xl:col-span-3">
+    <section id="criteria-panel" class="bg-slate-900 rounded-lg border border-slate-800 p-4 sticky top-20">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-semibold text-white text-sm uppercase tracking-wide">Criteria</h2>
+        <button id="reset-btn" class="text-xs text-slate-400 hover:text-emerald-400">
+          <i class="fas fa-rotate-left mr-1"></i>Reset
+        </button>
+      </div>
+
+      <label class="block text-xs text-slate-400 mb-1">Preset</label>
+      <select id="preset-select"
+              class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm mb-1"></select>
+      <p id="preset-measured" class="text-[11px] text-slate-500 mb-4 leading-snug"></p>
+
+      <div id="criteria-form" class="space-y-4 max-h-[60vh] overflow-y-auto pr-1"></div>
+
+      <button id="scan-btn"
+              class="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded py-2.5 text-sm font-semibold transition">
+        <i class="fas fa-magnifying-glass-chart mr-2"></i>Run Screener
+      </button>
+      <p class="text-[11px] text-slate-500 mt-2 leading-snug">
+        Scans live Polygon chains. Nothing is sent to a broker by this button.
+      </p>
+    </section>
+  </aside>
+
+  <!-- ================= results ================= -->
+  <section class="col-span-12 xl:col-span-9 space-y-4">
+
+    <div id="warnings"></div>
+
+    <div id="stats" class="grid grid-cols-2 md:grid-cols-5 gap-3"></div>
+
+    <div id="results-wrap" class="bg-slate-900 rounded-lg border border-slate-800 overflow-hidden">
+      <div class="px-4 py-3 border-b border-slate-800 flex items-center gap-3">
+        <h2 class="font-semibold text-white text-sm">Ranked Positions</h2>
+        <span id="result-count" class="text-xs text-slate-500"></span>
+        <label class="ml-auto text-xs text-slate-400 flex items-center gap-2">
+          <input type="checkbox" id="show-all" class="accent-emerald-500">
+          Show all candidates (not just selected)
+        </label>
+      </div>
+      <div id="results" class="p-4 text-sm text-slate-500">
+        Configure criteria and run the screener.
+      </div>
+    </div>
+
+    <div id="rejections" class="bg-slate-900 rounded-lg border border-slate-800 p-4 hidden">
+      <h3 class="text-sm font-semibold text-white mb-2">Why symbols were filtered out</h3>
+      <div id="rejection-list" class="flex flex-wrap gap-2 text-xs"></div>
+    </div>
+  </section>
+</main>
+
+<!-- ================= order modal ================= -->
+<div id="order-modal" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50 p-4">
+  <div class="bg-slate-900 border border-slate-700 rounded-lg max-w-lg w-full p-5">
+    <h3 class="text-white font-semibold mb-3">Submit Order</h3>
+    <div id="order-detail" class="text-sm space-y-1 mb-4"></div>
+    <label class="block text-xs text-slate-400 mb-1">Broker</label>
+    <select id="order-broker" class="w-full bg-slate-800 border border-slate-700 rounded px-2 py-1.5 text-sm mb-4">
+      <option value="alpaca">Alpaca</option>
+      <option value="ibkr">Interactive Brokers</option>
+    </select>
+    <div id="order-result" class="text-xs mb-3"></div>
+    <div class="flex gap-2">
+      <button id="order-cancel" class="flex-1 bg-slate-800 hover:bg-slate-700 rounded py-2 text-sm">Cancel</button>
+      <button id="order-send" class="flex-1 bg-emerald-600 hover:bg-emerald-500 rounded py-2 text-sm font-semibold">Send</button>
+    </div>
+    <p class="text-[11px] text-slate-500 mt-3">
+      Adapters are DRY RUN unless armed by environment variable on the server.
+    </p>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
