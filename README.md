@@ -28,10 +28,15 @@ Recommended configuration, backtested on ThetaData 2023 EOD chains:
 | Trades | 240 |
 | Win rate | **77.5%** |
 | Expectancy | $277/trade |
-| Net | $66,526 on $50,000 |
+| Net | $53,334 on $50,000 (corrected — see below) |
 | Profit factor | 1.86 |
 | Max drawdown | 19.8% |
 | Peak capital at risk | 53% |
+
+**Correction:** an earlier version of this README quoted $66,526. That was the
+luckiest of five random seeds at a 95% midpoint-fill assumption. The
+deterministic result with perfect midpoint fills is **$53,334**; the seed-mean
+at 95% is $59,597. Details in `docs/BACKTEST.md` §15.
 
 **Read this before quoting those numbers:**
 

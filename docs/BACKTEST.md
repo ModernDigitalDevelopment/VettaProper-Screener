@@ -549,3 +549,93 @@ The fitted model is not a gate — it is a *sort*. It scores every surviving
 candidate so that when five spreads pass the filters, the best one is taken
 first. The interaction term (−2.5379) encodes the trade-off: **a fat credit is
 worth much less when you had to go close to the money to get it.**
+
+---
+
+## 15. IBKR MidPrice — how much does fill quality actually matter?
+
+Claim under test: *"we use the IBKR mid fill tool which gets the middle number
+almost 100% of the time."*
+
+IBKR's MidPrice order is real and does what is claimed on **price**: it works
+the order toward the NBBO midpoint and fills at mid or better. IBKR's own
+material notes multi-leg orders typically execute closer to fair value than
+single legs, because market makers price the package rather than each leg.
+
+So the question is what perfect midpoint pricing is worth.
+
+### Result — and a correction to an earlier number
+
+Running the recommended configuration at different midpoint-fill rates
+exposed a problem with the headline figure. At `mid_fill_prob` between 0 and 1
+the engine flips a coin per fill, so results carry RNG noise. Re-running across
+five seeds:
+
+| Mid fill rate | Mean net | Median | Min | Max | Seed spread |
+|---|---|---|---|---|---|
+| **100%** | **$53,334** | $53,334 | $53,334 | $53,334 | $0 |
+| 95% | $59,597 | $63,447 | $49,875 | $66,526 | **$16,651** |
+| 50% | $35,968 | $32,001 | $24,420 | $52,547 | $28,126 |
+| 0% | $31,573 | $31,573 | $31,573 | $31,573 | $0 |
+
+100% and 0% are deterministic (no coin flips), so their spread is zero.
+
+**The $66,526 figure quoted throughout earlier sections was the luckiest of
+five seeds at 95%, not a typical result.** The seed-mean at 95% is $59,597, and
+the deterministic 100%-mid result is **$53,334**.
+
+That last point is counter-intuitive and worth stating plainly: **perfect
+midpoint fills scored lower than the lucky 95% seed.** Not because mid fills
+are worse, but because path dependence — which trades get entered, which
+sector slots are occupied — swamps a few cents of fill quality. Comparing
+single seeds across fill rates was measuring noise.
+
+**Corrected baseline: $53,334 with perfect mid fills.**
+
+### What midpoint filling is worth
+
+| | Net |
+|---|---|
+| Always mid | $53,334 |
+| Always crossing the spread | $31,573 |
+| **Value of perfect fills** | **$21,761 (41%)** |
+
+Fill quality is worth about 41% of the result. Material, and worth using
+MidPrice for — but the strategy stays clearly profitable even in the
+never-get-mid worst case.
+
+### The part MidPrice does not solve
+
+MidPrice controls **what price you pay when you fill**. It does not control
+**whether you fill at all.** A resting midpoint order needs someone to cross to
+you. If nobody does, you do not get a worse price — you get no trade.
+
+The backtest assumes every ranked candidate was entered. Modelling the gap:
+
+| Fill rate | Trades | Net (fixed 5%) | Compounded 5% |
+|---|---|---|---|
+| 100% | 240 | $53,334 | $125,063 (+150%) |
+| 85% | 204 | $40,508 | $102,482 (+105%) |
+| 70% | 173 | $34,508 | $94,722 (+89%) |
+| 50% | 128 | $26,497 | $80,740 (+62%) |
+
+Non-fills are roughly **neutral on win rate** — they remove winners and losers
+in proportion — so they scale P&L down without degrading edge.
+
+### Revising the earlier stress test
+
+Section 13 stressed a −30% haircut and showed +224% becoming −27%. That haircut
+modelled **price slippage**, which assumed repeatedly paying worse than mid.
+
+**If MidPrice delivers as described, that scenario is too pessimistic.** The
+realistic risk is not bad prices, it is missed trades — and missed trades are
+far less damaging:
+
+| Risk | Mechanism | Effect at 30% |
+|---|---|---|
+| Price slippage (old assumption) | Worse fills, wins shrink, losses widen | +224% → **−27%** |
+| Non-fills (MidPrice reality) | Fewer trades, same edge per trade | +150% → **+89%** |
+
+**This is a materially better picture.** Still measure it: log every order and
+record fill rate and price versus mid for a quarter. Those two numbers decide
+which row above applies to you.
