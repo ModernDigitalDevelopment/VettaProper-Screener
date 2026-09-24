@@ -639,3 +639,24 @@ far less damaging:
 **This is a materially better picture.** Still measure it: log every order and
 record fill rate and price versus mid for a quarter. Those two numbers decide
 which row above applies to you.
+
+---
+
+## 16. Sector cap at matched fill assumptions
+
+Section 4's 1-vs-2 per sector comparison mixed fill assumptions, making it
+misleading. Re-run with deterministic 100% midpoint fills on both:
+
+| Setting | Trades | Win % | Net | PF | Max DD | Peak risk |
+|---|---|---|---|---|---|---|
+| 1 per sector | 240 | 76.2% | $53,334 | 1.62 | 24.2% | 53% |
+| 2 per sector | 303 | 75.2% | $84,168 | 1.69 | 38.3% | 58% |
+
+Two per sector earns 58% more for 58% more drawdown. **Profit factor barely
+moves (1.69 vs 1.62)** — the extra return is compensation for extra risk, not
+extra edge.
+
+Earlier text claimed the cap cut drawdown "44.4% → 19.8%". That compared a
+95%-fill run against a 100%-fill run and overstated the effect. The honest
+figure at matched assumptions is **38.3% → 24.2%** — still a large risk
+reduction for a moderate cost, but not the one previously stated.
