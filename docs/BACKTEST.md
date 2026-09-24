@@ -401,6 +401,72 @@ the cross-period overlap described above.
 Note the 20-contract cap binds as the account grows — lifting it to 100 gives
 $177,257 at 5% but pushes peak risk to 102%, i.e. beyond the account.
 
+
+### Breaking down the 5% compounding row
+
+| | |
+|---|---|
+| Start equity | $50,000 |
+| Final equity | $161,839 |
+| Profit | $111,839 |
+| Return | 223.7% (= 111,839 / 50,000) |
+| Max drawdown | 13.0% (worst peak-to-trough, as % of the peak) |
+| Trades | 240 |
+
+**Return** is total profit over starting capital. It is not annualised — the
+data covers 7 months.
+
+**Max drawdown falls (19.8% -> 13.0%) even though returns rise.** That is not a
+mistake. Drawdown is measured against the running peak, and the peak grows as
+the account grows. A $10k loss is 20% of $50k but only 8% of $120k. The dollar
+losses got bigger; they just got smaller relative to a bigger account.
+
+#### The mechanism
+
+Position size is recomputed from live equity on every entry:
+
+```
+contracts = floor( (equity x 0.05) / max_loss_per_contract )
+```
+
+| Date | Symbol | Equity | 5% budget | Max loss/ct | Contracts |
+|---|---|---|---|---|---|
+| 2023-03-09 | GNRC | $50,000 | $2,500 | $128 | 19 |
+| 2023-05-15 | NFLX | $52,400 | $2,620 | $377 | 6 |
+| 2023-06-27 | SMCI | $66,846 | $3,342 | $340 | 9 |
+| 2023-11-29 | BA | $99,460 | $4,973 | $416 | 11 |
+| 2023-12-14 | CAT | $117,205 | $5,860 | $357 | 16 |
+
+Contract count varies with both equity *and* the spread's max loss — a wide
+spread on a big account can still be fewer contracts than a narrow spread on a
+small one. Equity updates only when a trade **closes**; unrealised profit is
+not tradable capital.
+
+The 20-contract cap binds on 30 of 240 trades (12%), which increasingly throttles
+sizing as the account grows.
+
+#### Where the return came from
+
+| Month | P&L | Equity after |
+|---|---|---|
+| Mar | +$7,427 | $57,427 |
+| Apr | −$2,652 | $54,775 |
+| May | +$180 | $54,955 |
+| Jun | +$23,115 | $78,070 |
+| Oct | +$1,810 | $79,880 |
+| Nov | +$29,322 | $109,201 |
+| **Dec** | **+$52,638** | **$161,839** |
+
+**94% of the profit came from three months**, and December alone produced 47%.
+
+This is the part that matters: December was the largest month *and* the month
+with the largest account behind it. Compounding multiplied an already
+concentrated return. Had the calendar run the other way — December's conditions
+in March, on $50k — the compounded result would be far smaller.
+
+**+224% is one ordering of one favourable 7-month sample.** It is not a rate of
+return you should expect to repeat.
+
 ### These figures are extremely fragile
 
 Compounding multiplies execution quality. Apply a haircut to every trade
