@@ -345,3 +345,141 @@ risk. Every other bucket returned 10–20%. With only 42 trades this is most
 likely noise, but it is unexplained. **Re-check it on the 2022 data.** If it
 persists across both years it is a real effect worth understanding; if it
 vanishes, it was sample noise.
+
+---
+
+## 12. Sector cap scope — portfolio-wide, not daily
+
+The cap is checked against **every open position**, not just positions opened
+that day:
+
+```python
+sect = {}
+for p in open_pos:                          # the entire live book
+    sect[p.sector] = sect.get(p.sector, 0) + 1
+...
+if sect.get(pos.sector, 0) >= spec.max_per_sector:
+    continue
+```
+
+Verified by replaying the trade timeline and counting concurrent positions per
+sector at every open/close event:
+
+| Check | Result |
+|---|---|
+| Overlaps within a contiguous database period | **0** |
+| Overlaps spanning different database periods | 667 (artifact) |
+
+The 667 are an artifact of running three separate databases (Mar, Apr–Jun,
+Oct–Dec) as independent sequences: a March position and an April position look
+concurrent in a merged timeline but never coexisted. **Within any real trading
+sequence the cap held perfectly.**
+
+So with `max_per_sector=1`, holding an open TECH spread blocks every other TECH
+candidate until it closes — regardless of which day it was opened.
+
+---
+
+## 13. Compounding
+
+Section 4's figures use a **fixed $50,000 sizing base** all year
+(`cap = 50_000 × pct`). That understates a winning strategy because it never
+sizes up.
+
+Re-run with equity marked to realised P&L. Position size scales with the
+account; equity updates only when a trade **closes** (unrealised profit is not
+tradable capital). Compounded per database period and chained forward, to avoid
+the cross-period overlap described above.
+
+| Sizing | Final equity | Return | Max DD | Peak risk |
+|---|---|---|---|---|
+| Fixed $50k base, 5% | $116,526 | 133.1% | 19.8% | 53% |
+| **Compounding 5%** | **$161,839** | **223.7%** | 13.0% | 86% |
+| Compounding 7.5% | $205,400 | 310.8% | 19.0% | 84% |
+| Compounding 10% | $221,277 | 342.6% | 23.2% | 98% |
+
+Note the 20-contract cap binds as the account grows — lifting it to 100 gives
+$177,257 at 5% but pushes peak risk to 102%, i.e. beyond the account.
+
+### These figures are extremely fragile
+
+Compounding multiplies execution quality. Apply a haircut to every trade
+(wins reduced, losses widened) to model systematically worse fills:
+
+| Execution haircut | 5% compounding | 10% compounding |
+|---|---|---|
+| None (as modelled) | $161,839 (+224%) | $221,277 (+343%) |
+| −15% | $81,431 (+63%) | $98,745 (+98%) |
+| **−30%** | **$36,470 (−27%)** | **$16,253 (−68%)** |
+| −50% | $9,978 (−80%) | $2,471 (−95%) |
+
+**A 30% execution shortfall turns +224% into −27%.** The compounded numbers are
+not a forecast. They are what happens *if* live fills match a 95%-at-midpoint
+model — and multi-leg spread fills usually do not.
+
+Higher sizing amplifies this: at −30% the 10% configuration loses more than
+twice what the 5% one does. **Compounding is an argument for smaller position
+sizing, not larger.**
+
+---
+
+## 14. Delta vs risk-reward — which matters?
+
+### Neither is bad. They do different jobs.
+
+Variance in return on risk explained:
+
+| Model | R² |
+|---|---|
+| R:R alone | 0.0593 |
+| **delta alone** | **0.0009** |
+| both, no interaction | 0.0604 |
+| both + interaction | 0.0634 |
+
+**Risk-reward carries essentially all the predictive power for returns. Delta
+alone explains almost nothing (R² = 0.0009).**
+
+But look at what each does to win rate:
+
+| Filter | Trades | Win rate | Return on risk | PF |
+|---|---|---|---|---|
+| No filter | 2129 | 77.7% | 7.6% | 1.72 |
+| **R:R ≥ 0.20 only** | 1363 | 76.9% | **10.1%** | 1.77 |
+| **delta 0.20–0.30 only** | 658 | **82.8%** | 6.6% | 1.86 |
+| **Both** | 310 | 82.6% | 9.5% | **1.90** |
+| R:R ≥ 0.20 AND delta ≤ 0.34 | 702 | 80.6% | 9.5% | 1.89 |
+
+- **R:R drives returns.** Raises return on risk 7.6% → 10.1%, barely moves win rate.
+- **Delta drives win rate.** Raises win rate 77.7% → 82.8%, *lowers* return on risk.
+- **Together: the best profit factor (1.90).**
+
+They pull in opposite directions, which is exactly why you use both. Low delta
+means further OTM — you win more often but collect less. High R:R means a fat
+credit — but credit is only fat when you are close to the money.
+
+`corr(R:R, delta) = +0.461`. They are correlated but not redundant.
+
+### Answering the question directly
+
+> was it best if R:R above .2 and delta between .2-.3 together? or was one
+> better than the other?
+
+**Together** — but pick based on what you want:
+
+| Your goal | Use | Result |
+|---|---|---|
+| Highest win rate | delta 0.20–0.30 | 82.8% win |
+| Highest return per dollar risked | R:R ≥ 0.20 | 10.1% RoR |
+| **Best risk-adjusted (recommended)** | **both** | PF 1.90, 82.6% win |
+| More trades, nearly as good | R:R ≥ 0.20, delta ≤ 0.34 | 702 trades, PF 1.89 |
+
+The last row matters practically: requiring delta 0.20–0.30 cuts you to 310
+trades from 2,129. Relaxing to delta ≤ 0.34 gives **702 trades at
+essentially identical quality** (PF 1.89 vs 1.90). More opportunities, same edge.
+
+### Why the ranking model uses both
+
+The fitted model is not a gate — it is a *sort*. It scores every surviving
+candidate so that when five spreads pass the filters, the best one is taken
+first. The interaction term (−2.5379) encodes the trade-off: **a fat credit is
+worth much less when you had to go close to the money to get it.**

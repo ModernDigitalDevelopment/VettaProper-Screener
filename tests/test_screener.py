@@ -202,3 +202,31 @@ def test_ivrv_is_off_by_default():
     assert Criteria().use_ivrv is False
     for name in PRESETS:
         assert preset(name).use_ivrv is False
+
+
+# ---- sector cap applies to the EXISTING book, not just today ------------
+
+def test_sector_cap_counts_already_open_positions():
+    """The cap is portfolio-wide. Holding TECH blocks new TECH entries."""
+    c = Criteria(max_per_sector=1, min_risk_reward=0.0, max_new_per_day=10)
+    cand = build_candidate("NEW", "TECH", GOOD_CHAIN, c, TODAY)
+    # nothing open -> accepted
+    assert len(select([cand], c, open_sectors={})) == 1
+    # one TECH already open -> rejected
+    cand2 = build_candidate("NEW", "TECH", GOOD_CHAIN, c, TODAY)
+    assert len(select([cand2], c, open_sectors={"TECH": 1})) == 0
+
+
+def test_open_sectors_allows_other_sectors():
+    c = Criteria(max_per_sector=1, min_risk_reward=0.0, max_new_per_day=10)
+    cand = build_candidate("H", "HEALTH", GOOD_CHAIN, c, TODAY)
+    assert len(select([cand], c, open_sectors={"TECH": 1})) == 1
+
+
+def test_two_per_sector_respects_existing_one():
+    c = Criteria(max_per_sector=2, min_risk_reward=0.0, max_new_per_day=10)
+    a = build_candidate("A", "TECH", GOOD_CHAIN, c, TODAY)
+    b = build_candidate("B", "TECH", GOOD_CHAIN, c, TODAY)
+    a.symbol, b.symbol = "A", "B"
+    # one already open, cap 2 -> only one more allowed
+    assert len(select([a, b], c, open_sectors={"TECH": 1})) == 1

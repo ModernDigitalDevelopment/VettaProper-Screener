@@ -52,6 +52,9 @@ class ScanRequest(BaseModel):
     preset: str | None = None
     symbols: list[str] | None = None
     provider: str | None = None        # polygon | alpaca | ibkr
+    # sector -> count of positions ALREADY open, so caps apply against the
+    # live book and not just today's entries. Get it from /api/reconcile.
+    open_sectors: dict[str, int] | None = None
 
 
 class OrderSubmit(BaseModel):
@@ -138,7 +141,8 @@ async def scan(req: ScanRequest):
     try:
         async with factory.make(name) as data:
             result = await run_scan(data, crit, today=date.today(),
-                                    events=load_events(), symbols=req.symbols)
+                                    events=load_events(), symbols=req.symbols,
+                                    open_sectors=req.open_sectors)
     except (PolygonError, RuntimeError) as e:
         raise HTTPException(503, str(e))
     result.stats["provider"] = name
