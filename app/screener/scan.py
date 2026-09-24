@@ -18,6 +18,7 @@ from app.core.criteria import Criteria
 from app.screener.context import ContextProvider
 from app.screener.engine import (build_candidate, event_blackout, select,
                                  trend_ok, vix_ok)
+from app.screener.indicators import passes as ind_passes
 from app.screener.universe import resolve, sector_of
 
 log = logging.getLogger(__name__)
@@ -49,8 +50,11 @@ async def run_scan(polygon, criteria: Criteria, today: date | None = None,
 
     ctx = ContextProvider(polygon, events=events)
 
-    # 1. trend (skip the fetch entirely when the filter is off)
-    if criteria.trend_mode and criteria.trend_mode != "none":
+    # 1. trend + indicators (one price fetch serves both)
+    needs_bars = ((criteria.trend_mode and criteria.trend_mode != "none")
+                  or criteria.min_adx > 0 or criteria.rsi_hi > 0
+                  or criteria.require_di_bullish)
+    if needs_bars:
         await ctx.load_trend(syms, today)
 
     # 2. VIX regime
@@ -74,6 +78,18 @@ async def run_scan(polygon, criteria: Criteria, today: date | None = None,
             if not trend_ok(ctx.trend(s), criteria, criteria.structure):
                 rej["trend"] += 1
                 continue
+        if criteria.min_adx > 0 or criteria.rsi_hi > 0 or criteria.require_di_bullish:
+            ind = ctx.indicators(s)
+            if ind is None:
+                rej["no_indicator_data"] += 1
+                continue
+            ok, why = ind_passes(ind, min_adx=criteria.min_adx,
+                                 rsi_lo=criteria.rsi_lo, rsi_hi=criteria.rsi_hi,
+                                 require_di_bullish=criteria.require_di_bullish)
+            if not ok:
+                rej["adx" if "ADX" in why else
+                    "rsi" if "RSI" in why else "dmi"] += 1
+                continue
         eligible.append(s)
 
     if not ctx.events:
@@ -94,6 +110,10 @@ async def run_scan(polygon, criteria: Criteria, today: date | None = None,
                 return sym, None, "no_chain"
             px = await polygon.last_price(sym)
             cand = build_candidate(sym, sector_of(sym), chain, criteria, today, px)
+            if cand:
+                ind = ctx.indicators(sym)
+                if ind:
+                    cand.indicators = ind.to_dict()
             return sym, cand, None if cand else "no_valid_spread"
         except Exception as e:
             log.debug("scan %s failed: %s", sym, e)

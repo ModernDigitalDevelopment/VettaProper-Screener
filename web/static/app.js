@@ -35,6 +35,15 @@ const FIELDS = [
       opts: [['s10_50','Price>50SMA and 10SMA>50SMA (best)'],['s10_30','Price>50SMA and 10SMA>30SMA'],
              ['below50','Price<50SMA (bearish)'],['none','No trend filter']] },
   ]},
+  { group: 'Technical indicators', items: [
+    { k: 'min_adx', t: 'num', label: 'Min ADX (trend strength)', step: 1, min: 0, max: 50,
+      help: 'BEST tested addition: +32% net, +3.8pp win, -9.6pp drawdown vs no ADX. 0 disables.' },
+    { k: 'rsi_lo', t: 'num', label: 'RSI floor', step: 1, min: 0, max: 100 },
+    { k: 'rsi_hi', t: 'num', label: 'RSI ceiling (0 = off)', step: 1, min: 0, max: 100,
+      help: 'Screened well in isolation but did NOT improve the portfolio. Off by default.' },
+    { k: 'require_di_bullish', t: 'bool', label: 'Require +DI > -DI',
+      help: 'Directional bias from DMI. Redundant with ADX in testing.' },
+  ]},
   { group: 'Liquidity', items: [
     { k: 'max_rel_spread', t: 'num', label: 'Max bid/ask spread', step: 0.01, min: 0.01, max: 0.5,
       help: '0.10 = spread no wider than 10% of mid.' },
@@ -76,11 +85,11 @@ async function init(){
   sel.innerHTML = Object.entries(PRESETS)
     .map(([k,v])=>`<option value="${k}">${v.label}</option>`).join('')
     + '<option value="__custom">Custom</option>';
-  sel.value = 'validated_conservative';
-  applyPreset('validated_conservative');
+  sel.value = 'adx_trend_strength';
+  applyPreset('adx_trend_strength');
 
   sel.onchange = e => { if(e.target.value!=='__custom') applyPreset(e.target.value); };
-  $('#reset-btn').onclick = () => { sel.value='validated_conservative'; applyPreset('validated_conservative'); };
+  $('#reset-btn').onclick = () => { sel.value='adx_trend_strength'; applyPreset('adx_trend_strength'); };
   $('#scan-btn').onclick = runScan;
 
   await initProviders();
@@ -295,6 +304,12 @@ function row(c,i){
   <tr id="why-${i}" class="hidden"><td colspan="13" class="px-3 pb-2 text-[11px] text-slate-400 bg-slate-900/50">
     <i class="fas fa-calculator mr-1"></i>${c.rank_explanation}
     &nbsp;·&nbsp; breakeven ${fmt(c.breakeven,2)} &nbsp;·&nbsp; max loss/contract ${money(c.max_loss_per_contract)}
+    ${c.indicators && c.indicators.adx14!=null ? `<div class="mt-1 text-slate-500">
+      <i class="fas fa-wave-square mr-1"></i>ADX ${fmt(c.indicators.adx14,1)}
+      · +DI ${fmt(c.indicators.plus_di,1)} / −DI ${fmt(c.indicators.minus_di,1)}
+      · RSI ${fmt(c.indicators.rsi14,1)}
+      · %B ${fmt(c.indicators.bb_pctb,2)}
+      · ATR ${fmt(c.indicators.atr_pct,1)}%</div>` : ''}
   </td></tr>`;
 }
 

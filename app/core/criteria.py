@@ -43,6 +43,14 @@ class Criteria:
     # ---- trend -----------------------------------------------------------
     trend_mode: str = "s10_50"           # "" | none | s10_50 | s10_30 | below50
 
+    # ---- technical indicators (ported from the Vetta screener) ----------
+    # ADX >= 20 was the single best addition found: +32% net, +3.8pp win rate,
+    # -9.6pp drawdown, on 15% fewer trades. See docs/INDICATORS.md.
+    min_adx: float = 20.0                # 0 disables
+    rsi_lo: float = 0.0                  # RSI band; 0/0 disables.
+    rsi_hi: float = 0.0                  # Tested: did NOT help the portfolio.
+    require_di_bullish: bool = False      # +DI > -DI
+
     # ---- regime ----------------------------------------------------------
     max_vix: float = 0.0                 # 0 disables
     min_vix: float = 0.0
@@ -82,19 +90,52 @@ class Criteria:
 # Named presets straight out of the backtest grid. Each carries its measured
 # result so the UI can show what you are actually selecting.
 PRESETS: dict[str, dict[str, Any]] = {
-    "validated_conservative": {
-        "label": "Validated — Conservative (recommended)",
+    "adx_trend_strength": {
+        "label": "ADX Trend Strength (recommended) — best tested",
         "measured": {
-            "trades": 240, "win_rate": 77.5, "expectancy": 277.19,
-            "net": 66526, "profit_factor": 1.86,
-            "max_dd_pct": 19.8, "peak_risk_pct": 53,
-            "period": "2023 (7 months of data)",
+            "trades": 205, "win_rate": 80.0, "expectancy": 344.03,
+            "net": 70526, "profit_factor": 2.20,
+            "max_dd_pct": 14.6, "peak_risk_pct": 51,
+            "period": "2023 (7 months), 100% mid fills",
         },
         "criteria": {
             "max_pct_per_position": 0.05, "max_per_sector": 1,
             "min_risk_reward": 0.20, "rank_mode": "score",
             "trend_mode": "s10_50", "use_ivrv": False,
             "earnings_blackout_days": 12, "blackout_exdiv": True,
+            "min_adx": 20.0, "rsi_lo": 0.0, "rsi_hi": 0.0,
+        },
+    },
+    "validated_conservative": {
+        "label": "SMA only — no ADX (previous default)",
+        "measured": {
+            "trades": 240, "win_rate": 76.2, "expectancy": 222.22,
+            "net": 53334, "profit_factor": 1.62,
+            "max_dd_pct": 24.2, "peak_risk_pct": 53,
+            "period": "2023 (7 months), 100% mid fills",
+        },
+        "criteria": {
+            "max_pct_per_position": 0.05, "max_per_sector": 1,
+            "min_risk_reward": 0.20, "rank_mode": "score",
+            "trend_mode": "s10_50", "use_ivrv": False,
+            "earnings_blackout_days": 12, "blackout_exdiv": True,
+            "min_adx": 0.0,
+        },
+    },
+    "adx_strict": {
+        "label": "ADX≥25 + RSI 60-80 — highest PF, fewest trades",
+        "measured": {
+            "trades": 158, "win_rate": 79.1, "expectancy": 351.30,
+            "net": 55505, "profit_factor": 2.31,
+            "max_dd_pct": 13.0, "peak_risk_pct": 43,
+            "period": "2023 (7 months), 100% mid fills",
+        },
+        "criteria": {
+            "max_pct_per_position": 0.05, "max_per_sector": 1,
+            "min_risk_reward": 0.20, "rank_mode": "score",
+            "trend_mode": "s10_50", "use_ivrv": False,
+            "earnings_blackout_days": 12, "blackout_exdiv": True,
+            "min_adx": 25.0, "rsi_lo": 60.0, "rsi_hi": 80.0,
         },
     },
     "high_win_rate": {
@@ -114,18 +155,19 @@ PRESETS: dict[str, dict[str, Any]] = {
         },
     },
     "two_per_sector": {
-        "label": "2 per sector, 5% — more trades, deeper drawdown",
+        "label": "ADX + 2 per sector — most profit, 35% drawdown",
         "measured": {
-            "trades": 304, "win_rate": 75.0, "expectancy": 243.89,
-            "net": 74144, "profit_factor": 1.60,
-            "max_dd_pct": 44.4, "peak_risk_pct": 58,
-            "period": "2023 (7 months of data)",
+            "trades": 254, "win_rate": 79.9, "expectancy": 315.70,
+            "net": 80187, "profit_factor": 2.00,
+            "max_dd_pct": 35.5, "peak_risk_pct": 57,
+            "period": "2023 (7 months), 100% mid fills",
         },
         "criteria": {
             "max_pct_per_position": 0.05, "max_per_sector": 2,
-            "min_risk_reward": 0.0, "rank_mode": "score",
+            "min_risk_reward": 0.20, "rank_mode": "score",
             "trend_mode": "s10_50", "use_ivrv": False,
             "earnings_blackout_days": 12, "blackout_exdiv": True,
+            "min_adx": 20.0,
         },
     },
     "aggressive_10pct": {

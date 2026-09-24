@@ -25,13 +25,18 @@ Recommended configuration, backtested on ThetaData 2023 EOD chains:
 
 | Metric | Value |
 |---|---|
-| Trades | 240 |
-| Win rate | **77.5%** |
-| Expectancy | $277/trade |
-| Net | $53,334 on $50,000 (corrected — see below) |
-| Profit factor | 1.86 |
-| Max drawdown | 19.8% |
-| Peak capital at risk | 53% |
+| Trades | 205 |
+| Win rate | **80.0%** |
+| Expectancy | $344/trade |
+| Net | $70,526 on $50,000 |
+| Profit factor | 2.20 |
+| Max drawdown | 14.6% |
+| Peak capital at risk | 51% |
+
+That configuration includes an **ADX ≥ 20 trend-strength filter**, ported from
+the indicator suite in the predecessor screener. Against the same setup without
+it: +32% net, +3.8pp win rate, −9.6pp drawdown, on 15% fewer trades. See
+[`docs/INDICATORS.md`](docs/INDICATORS.md).
 
 **Correction:** an earlier version of this README quoted $66,526. That was the
 luckiest of five random seeds at a 95% midpoint-fill assumption. The

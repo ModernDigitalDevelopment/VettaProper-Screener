@@ -16,6 +16,9 @@ from typing import Any
 log = logging.getLogger(__name__)
 
 
+from app.screener.indicators import Indicators, compute as compute_indicators
+
+
 def smas(closes: list[float]) -> dict[str, float | None]:
     def sma(n: int) -> float | None:
         return sum(closes[-n:]) / n if len(closes) >= n else None
@@ -34,6 +37,7 @@ class ContextProvider:
         self.poly = polygon
         self.events = events or {}
         self._trend: dict[str, dict] = {}
+        self._ind: dict[str, Indicators] = {}
         self._vix: float | None = None
 
     async def load_trend(self, symbols: list[str], today: date,
@@ -45,14 +49,17 @@ class ContextProvider:
                 bars = await self.poly.daily_bars(sym, start, today)
                 closes = [b["close"] for b in bars]
                 if len(closes) < 50:
-                    return sym, None
-                return sym, smas(closes)
+                    return sym, None, None
+                ind = compute_indicators(
+                    [b["high"] for b in bars], [b["low"] for b in bars], closes)
+                return sym, smas(closes), ind
             except Exception as e:
                 log.debug("trend %s failed: %s", sym, e)
-                return sym, None
+                return sym, None, None
 
         results = await asyncio.gather(*(one(s) for s in symbols))
-        self._trend = {s: v for s, v in results if v}
+        self._trend = {s: v for s, v, _ in results if v}
+        self._ind = {s: i for s, _, i in results if i}
         missing = len(symbols) - len(self._trend)
         if missing:
             log.info("trend data unavailable for %d/%d symbols", missing, len(symbols))
@@ -60,6 +67,9 @@ class ContextProvider:
 
     def trend(self, symbol: str) -> dict | None:
         return self._trend.get(symbol)
+
+    def indicators(self, symbol: str) -> Indicators | None:
+        return self._ind.get(symbol)
 
     async def vix(self) -> float | None:
         if self._vix is None:

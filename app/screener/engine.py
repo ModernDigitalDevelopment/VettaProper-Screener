@@ -64,6 +64,7 @@ class Candidate:
     max_profit: float = 0.0
     commission: float = 0.0
 
+    indicators: dict[str, Any] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
 
     @property
