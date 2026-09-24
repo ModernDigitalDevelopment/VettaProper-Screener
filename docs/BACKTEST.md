@@ -272,3 +272,76 @@ The derived datasets in `backtest/data/` are sufficient to re-run the trend,
 event and sector logic. The raw ThetaData `.db` files (2.5 GB) exceed GitHub's
 file size limits and are not in this repository — see `docs/DATA.md` for how to
 store and retrieve them.
+
+---
+
+## 11. What happens when few sectors have valid trades
+
+A natural question: in weeks where only one or two sectors produce candidates,
+how does the system choose — and did the backtest just buy everything?
+
+### It did not buy everything
+
+Selection is rank-then-cap:
+
+```python
+cands.sort(key=lambda p: -rank_score(p))   # best expected return on risk first
+for pos in cands:
+    if new >= max_new_per_day: break           # 4 per day
+    if sect[pos.sector] >= max_per_sector: continue   # 1 per sector
+    ...
+```
+
+Candidates are ranked, then taken in order until a cap binds. Everything below
+the cut is discarded, not entered.
+
+### Thin days were the most common case
+
+Recommended configuration, 104 days with entries:
+
+| Positions opened | Days |
+|---|---|
+| 1 | 39 |
+| 2 | 21 |
+| 3 | 17 |
+| 4 | 27 |
+
+**37% of entry days produced exactly one position.** This is not an edge case.
+
+### Thin days performed better, not worse
+
+| Day type | Trades | Win % | Expectancy | PF | Mean return on risk |
+|---|---|---|---|---|---|
+| 1 candidate | 39 | **82.1%** | $446 | **3.82** | 19.8% |
+| 2 candidates | 42 | 76.2% | $6 | 1.01 | −0.1% |
+| 3 candidates | 51 | 76.5% | $455 | 4.32 | 20.1% |
+| 4 candidates | 108 | 76.9% | $238 | 1.59 | 10.7% |
+
+Single-candidate days had the **highest win rate of any bucket**. When only one
+spread clears every gate, that spread is one the filters genuinely liked — not
+a compromise made to fill a slot.
+
+**Practical answer: take the trade and leave the rest in cash.** Do not relax
+criteria to manufacture diversification. The filters are the edge; loosening
+them to stay busy discards the edge.
+
+### The book was never full
+
+| Metric | Value |
+|---|---|
+| Max concurrent positions | 11 (of 12 allowed) |
+| Median concurrent positions | 7 |
+| Median capital at risk | $16,192 (32% of $50,000) |
+| Peak capital at risk | $26,255 (53%) |
+
+**Median utilisation was 32%.** The strategy sits mostly in cash by
+construction. That idle capital is not inefficiency — it is the reason max
+drawdown is 19.8% instead of 44%.
+
+### One anomaly worth re-testing
+
+Two-candidate days were flat: PF 1.01, $6 per trade, essentially zero return on
+risk. Every other bucket returned 10–20%. With only 42 trades this is most
+likely noise, but it is unexplained. **Re-check it on the 2022 data.** If it
+persists across both years it is a real effect worth understanding; if it
+vanishes, it was sample noise.

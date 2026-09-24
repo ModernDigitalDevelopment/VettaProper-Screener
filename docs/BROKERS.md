@@ -147,3 +147,95 @@ Add IBKR when you need it for better fills or an existing account, and accept
 that it constrains where the app can run. A sensible pattern is to keep the
 screener serverless and run a small IBKR executor on a VPS that pulls signals
 from it.
+
+---
+
+# Market data providers
+
+Three sources, one interface. Switch with `DATA_PROVIDER` or the UI dropdown.
+
+| | Polygon | Alpaca | IBKR |
+|---|---|---|---|
+| Whole chain in one call | ✅ | ✅ | ❌ |
+| Greeks | ✅ | ✅ (computed) | ✅ (needs subscription) |
+| Cost | Paid options plan | Free with funded account | Data subscriptions |
+| Real-time | ✅ | Needs OPRA agreement | ✅ |
+| Full-universe scan | ✅ | ✅ | ❌ blocked |
+| Needs companion process | No | No | **Yes** |
+
+## Alpaca data — yes, this is feasible
+
+You weren't sure this was possible. It is, and it may be your best option.
+
+`GET /v1beta1/options/snapshots/{underlying}` returns quotes, greeks and open
+interest for a whole underlying in one call — the same shape as Polygon, so it
+drops into the screener unchanged.
+
+```bash
+DATA_PROVIDER=alpaca
+ALPACA_OPTIONS_FEED=indicative   # or 'opra' for real-time
+```
+
+Two caveats:
+
+1. **Real-time needs the OPRA agreement** accepted in the Alpaca dashboard.
+   Without it you get 15-minute delayed data. For scanning 7–11 DTE spreads
+   that is acceptable; for execution pricing it is not.
+2. **Greeks are computed by Alpaca**, not exchange-provided. Fine for delta
+   targeting, but they will not match IBKR tick-for-tick.
+
+Using Alpaca data means the quotes come from the venue you are trading on,
+which removes a paid dependency and eliminates data-vs-execution mismatch.
+
+## IBKR data — works, but know the constraint
+
+The hard limitation is structural: **IBKR has no bulk chain endpoint.**
+
+Polygon or Alpaca: one call returns AAPL's whole chain.
+IBKR: resolve underlying conid → list strikes → resolve each strike to a conid
+→ request market data per conid. For 365 symbols that is thousands of calls.
+
+The app therefore **blocks full-universe scans on IBKR** and returns a 400
+explaining why. Pass an explicit watchlist instead:
+
+```json
+POST /api/scan
+{ "provider": "ibkr", "symbols": ["AAPL","MSFT","NVDA"], "criteria": {...} }
+```
+
+### Snapshot priming
+
+IBKR's REST snapshot endpoint is streaming-first: the first call for a contract
+primes a subscription and often returns empty. This is documented IBKR
+behaviour, not a bug. `_snapshot_with_priming()` polls until fields appear.
+
+### Session management
+
+The gateway session expires and renewal requires human 2FA.
+
+- `GET /api/ibkr/status` — reachable? authenticated? includes a remedy string
+- `POST /api/ibkr/keepalive` — ping to hold the session open
+
+Call keepalive every few minutes during market hours. The UI checks status
+automatically when you select IBKR and shows a red banner if the session is
+down, so a scan never fails mysteriously.
+
+## Recommended setup
+
+**Polygon or Alpaca for scanning, IBKR for execution.**
+
+Scanning needs breadth and cheap bulk access. Execution needs the venue you
+actually trade on. Using IBKR for both means either a very slow scan or a very
+small universe.
+
+If you have Alpaca keys already, try `DATA_PROVIDER=alpaca` first — it removes
+the Polygon subscription from your critical path.
+
+## Reconciliation
+
+`GET /api/reconcile/{broker}` returns what the broker actually holds, grouped by
+sector. Feed `by_sector` into `/api/scan` as `open_sectors` so per-sector caps
+account for positions you already have.
+
+The predecessor system's dashboard displayed positions that did not exist. This
+endpoint is here so that cannot silently happen again.

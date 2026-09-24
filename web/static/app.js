@@ -1,7 +1,7 @@
 /* Vetta Proper Screener — UI */
 'use strict';
 
-let DEFAULTS = {}, PRESETS = {}, LAST = null, CURRENT = {};
+let DEFAULTS = {}, PRESETS = {}, LAST = null, CURRENT = {}, PROVIDERS = {}, PROVIDER = 'polygon';
 
 /* Which criteria are exposed as toggles, and how they render.
    Every one of these was a variable in the backtest grid. */
@@ -82,6 +82,8 @@ async function init(){
   sel.onchange = e => { if(e.target.value!=='__custom') applyPreset(e.target.value); };
   $('#reset-btn').onclick = () => { sel.value='validated_conservative'; applyPreset('validated_conservative'); };
   $('#scan-btn').onclick = runScan;
+
+  await initProviders();
   $('#show-all').onchange = () => LAST && render(LAST);
   $('#order-cancel').onclick = () => $('#order-modal').classList.add('hidden');
 
@@ -145,6 +147,37 @@ function renderField(f){
     <label class="block text-[11px] text-slate-400 mb-0.5">${f.label}</label>${input}${help}</div>`;
 }
 
+async function initProviders(){
+  const r = await fetch('/api/providers').then(r=>r.json()).catch(()=>null);
+  if(!r) return;
+  PROVIDERS = r.providers; PROVIDER = r.active;
+  const sel = $('#provider-select');
+  sel.innerHTML = Object.entries(PROVIDERS).map(([k,v])=>
+    `<option value="${k}" ${k===PROVIDER?'selected':''} ${v.configured?'':'disabled'}>
+       ${v.label}${v.configured?'':' \u2014 not configured'}</option>`).join('');
+  sel.onchange = e => { PROVIDER = e.target.value; showProviderNote(); };
+  showProviderNote();
+}
+
+function showProviderNote(){
+  const v = PROVIDERS[PROVIDER]; if(!v) return;
+  const warn = !v.bulk_chain;
+  $('#provider-note').innerHTML = warn
+    ? `<span class="text-amber-400"><i class="fas fa-triangle-exclamation mr-1"></i>${v.notes}
+       Full-universe scans are blocked for this source \u2014 it needs a watchlist.</span>`
+    : v.notes;
+  if(warn) checkIbkr();
+}
+
+async function checkIbkr(){
+  const s = await fetch('/api/ibkr/status').then(r=>r.json()).catch(()=>null);
+  if(!s || s.authenticated) return;
+  $('#provider-note').innerHTML +=
+    `<span class="block mt-1 text-red-400"><i class="fas fa-plug-circle-xmark mr-1"></i>
+     ${s.reachable?'Gateway reachable but not authenticated.':'Gateway unreachable.'}
+     ${s.remedy||''}</span>`;
+}
+
 async function loadStatus(){
   const h = await fetch('/api/health').then(r=>r.json()).catch(()=>({}));
   const pill = (ok,label,warn) =>
@@ -153,6 +186,7 @@ async function loadStatus(){
   $('#status-pills').innerHTML =
     pill(h.polygon_configured,'Polygon') +
     pill(h.alpaca_configured,'Alpaca') +
+    pill(h.ibkr_configured,'IBKR') +
     pill(true, h.alpaca_armed||h.ibkr_armed ? 'ARMED' : 'Dry run', h.alpaca_armed||h.ibkr_armed);
 }
 
@@ -164,7 +198,7 @@ async function runScan(){
   try {
     const res = await fetch('/api/scan', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({criteria: CURRENT})
+      body: JSON.stringify({criteria: CURRENT, provider: PROVIDER})
     });
     if(!res.ok){ throw new Error((await res.json()).detail || res.statusText); }
     LAST = await res.json();
