@@ -94,11 +94,14 @@ cd VettaProper-Screener
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-cp .env.example .env        # add your Polygon key
+cp .env.example .env        # paste your Polygon key into POLYGON_API_KEY=
+python check_config.py --live   # verify the key works before trading
 uvicorn app.main:app --reload --port 3000
 ```
 
 Open <http://localhost:3000>.
+
+Full detail: [`docs/SETUP_KEYS.md`](docs/SETUP_KEYS.md)
 
 ### Polygon plan
 

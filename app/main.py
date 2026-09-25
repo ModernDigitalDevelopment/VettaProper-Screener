@@ -7,14 +7,22 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv  # noqa: E402
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-load_dotenv()
+# find_dotenv walks up from the CWD, so the app works when launched from a
+# subdirectory. Blank-but-set variables are treated as unset: an empty
+# POLYGON_API_KEY= exported in a shell would otherwise silently win over .env
+# and look identical to "no key configured".
+for _k in ("POLYGON_API_KEY", "APCA_API_KEY_ID", "APCA_API_SECRET_KEY",
+           "IBKR_GATEWAY_URL", "DATA_PROVIDER"):
+    if os.environ.get(_k, "__missing__") == "":
+        del os.environ[_k]
+load_dotenv(find_dotenv(usecwd=True), override=False)
 
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),
