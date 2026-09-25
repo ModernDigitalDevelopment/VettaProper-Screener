@@ -1,0 +1,18 @@
+services:
+  screener:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env          # your keys stay on the host, never in the image
+    restart: unless-stopped
+
+  # IBKR only. The Client Portal Gateway must run alongside the app and be
+  # authenticated by hand (2FA). Alpaca needs none of this.
+  # ibkr-gateway:
+  #   image: voyz/ibeam
+  #   environment:
+  #     IBEAM_ACCOUNT: ${IBKR_USERNAME}
+  #     IBEAM_PASSWORD: ${IBKR_PASSWORD}
+  #   ports:
+  #     - "5000:5000"
+  #   restart: unless-stopped

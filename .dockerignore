@@ -1,0 +1,15 @@
+.env
+.env.*
+.git
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+backtest/data/*.db
+backtest/data/*.pkl
+backtest/data/trend.json.gz
+backtest/data/indicators.json.gz
+backtest/engine
+docs
+tests
+*.md

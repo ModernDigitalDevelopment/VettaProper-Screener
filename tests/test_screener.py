@@ -230,3 +230,34 @@ def test_two_per_sector_respects_existing_one():
     a.symbol, b.symbol = "A", "B"
     # one already open, cap 2 -> only one more allowed
     assert len(select([a, b], c, open_sectors={"TECH": 1})) == 1
+
+
+# ---- deployability ------------------------------------------------------
+
+def test_container_file_set_is_sufficient():
+    """Everything the Dockerfile copies must be enough to boot the app.
+
+    Catches the class of bug where a data file the app needs at import time
+    is gitignored or omitted from the COPY list, so it works locally and
+    crashes on deploy.
+    """
+    from pathlib import Path
+    root = Path(__file__).parent.parent
+    dockerfile = (root / "Dockerfile").read_text()
+    for needed in ("app/", "web/", "backtest/data/events.json"):
+        assert needed in dockerfile, f"Dockerfile must COPY {needed}"
+
+
+def test_dockerignore_excludes_secrets():
+    from pathlib import Path
+    di = (Path(__file__).parent.parent / ".dockerignore").read_text().split()
+    assert ".env" in di, ".env must never be baked into an image"
+
+
+def test_events_calendar_loads_from_packaged_path():
+    """The 12-day blackout was the highest-value filter — it must not
+    silently deactivate in a container."""
+    from app.screener.events import load_events
+    load_events.cache_clear()
+    ev = load_events()
+    assert len(ev) > 300, f"expected the bundled calendar, got {len(ev)} symbols"

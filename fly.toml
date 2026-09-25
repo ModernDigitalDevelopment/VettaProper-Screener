@@ -1,0 +1,23 @@
+# fly.io — cheapest always-on option, ~$2-5/month
+app = "vetta-screener"
+primary_region = "iad"          # close to US market data
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0      # set 1 if you want zero cold starts
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+[checks.health]
+  type = "http"
+  path = "/api/health"
+  interval = "30s"
+  timeout = "5s"

@@ -85,6 +85,20 @@ Measured effect, 5% sizing / 2 per sector, all else equal:
 
 ---
 
+## Going live
+
+Three stages, in order. See [`docs/GOING_LIVE.md`](docs/GOING_LIVE.md).
+
+| Stage | Meaning | Risk |
+|---|---|---|
+| **1. Live data** | Real option chains — `.env` + `check_config.py --live` | None |
+| **2. Hosted** | Reachable from a URL — `fly deploy` or `docker compose up` | None |
+| **3. Armed** | Orders reach a broker — requires `VPS_ALPACA_LIVE=1` | Real money |
+
+**This is a FastAPI app — it needs a real host.** It cannot run on Cloudflare
+Pages or any static/serverless-only platform. `Dockerfile`, `fly.toml` and
+`docker-compose.yml` are included.
+
 ## Quick start
 
 ```bash
