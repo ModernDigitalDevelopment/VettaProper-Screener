@@ -60,6 +60,21 @@ class Spec:
     # -> sell calls, washed out -> sell puts. Unlike a trend filter this is
     # not structurally a direction bet, so it need not invert with the tape.
     revert_pct: float = 10.0
+    # --- asymmetric spec (trend_mode="asym") -----------------------------
+    # Different entry AND exit rules per side, because the two sides are not
+    # mirror images: 2022 Q2 showed calls into strength worked while puts into
+    # weakness did not. Here the put leg is a pullback-in-uptrend entry with a
+    # shorter tenor, and the call leg is a downtrend continuation.
+    #   bear call : 5SMA < 20SMA, target_dte/dte_tol, exit at exit_at_dte
+    #   bull put  : 5SMA > 20SMA + N down days, put_dte/put_dte_tol,
+    #               exit put_exit_dte
+    put_dte: int = 5
+    put_dte_tol: int = 1
+    put_exit_dte: int = 1            # EOD the day before expiry
+    put_require_down: int = 2        # consecutive down closes required
+    # Strike selection when no delta band is given: pick by moneyness instead.
+    # 0 disables (delta band is used).
+    no_delta: bool = False
     short_delta: float = 0.20
     delta_tol: float = 0.05
     width: float = 5.0
@@ -258,7 +273,25 @@ def build(rows, spec: Spec, today: date, rng: random.Random):
     # Done BEFORE the trend gate so the gate can point the same way as the
     # trade. Returns the concrete side in `side` and leaves spec untouched.
     side = spec.structure
-    if (spec.trend_mode or "") == "revert":
+    if (spec.trend_mode or "") == "asym":
+        tr0 = TREND.get((sym, rows[0]["trade_date"]))
+        if not tr0:
+            return None
+        s5, s20 = tr0.get("sma5"), tr0.get("sma20")
+        if s5 is None or s20 is None:
+            return None
+        if s5 < s20:
+            side = "bear_call"          # 5 under 20: downtrend, sell calls
+        elif s5 > s20:
+            # 5 over 20 -> uptrend, but only enter after a pullback
+            if spec.put_require_down == 2 and not tr0.get("down2"):
+                return None
+            if spec.put_require_down == 1 and not tr0.get("down1"):
+                return None
+            side = "bull_put"
+        else:
+            return None
+    elif (spec.trend_mode or "") == "revert":
         tr0 = TREND.get((sym, rows[0]["trade_date"]))
         if not tr0:
             return None
@@ -303,7 +336,7 @@ def build(rows, spec: Spec, today: date, rng: random.Random):
             return None          # genuinely undecided -> no trade
 
     mode = spec.trend_mode or ("s10_50" if spec.require_trend else "")
-    if mode in ("auto", "revert"):
+    if mode in ("auto", "revert", "asym"):
         # the side choice above already encodes the entry condition
         mode = "none"
     if mode and mode != "none":
@@ -380,6 +413,11 @@ def build(rows, spec: Spec, today: date, rng: random.Random):
     by_exp: dict[str, list] = {}
     for r in rows:
         by_exp.setdefault(r["expiration"], []).append(r)
+    # Per-side tenor: the asymmetric spec uses a shorter-dated put leg.
+    if (spec.trend_mode or "") == "asym" and side == "bull_put":
+        _tgt, _tol = spec.put_dte, spec.put_dte_tol
+    else:
+        _tgt, _tol = spec.target_dte, spec.dte_tol
     exp, dte = None, None
     for e in by_exp:
         try:
@@ -388,28 +426,53 @@ def build(rows, spec: Spec, today: date, rng: random.Random):
             continue
         if k < 2:
             continue
-        if abs(k - spec.target_dte) <= spec.dte_tol:
-            if dte is None or abs(k - spec.target_dte) < abs(dte - spec.target_dte):
+        if abs(k - _tgt) <= _tol:
+            if dte is None or abs(k - _tgt) < abs(dte - _tgt):
                 exp, dte = e, k
     if exp is None:
         return None
     chain = by_exp[exp]
 
     def pick_short(right: str):
+        """Choose the short strike.
+
+        Default: closest to the target delta band.
+
+        no_delta=True: no delta constraint at all. Every OTM strike that clears
+        the spread filter is eligible, and the one with the best premium per
+        unit of width is taken. This deliberately introduces no substitute
+        parameter (e.g. a target moneyness) -- the R:R floor does the work
+        instead. The delta actually selected is recorded on the position so the
+        effective risk can be inspected afterwards rather than assumed.
+        """
         best = None
         for r in chain:
             if r["right"] != right:
-                continue
-            ad = abs(float(r["delta"] or 0))
-            if abs(ad - spec.short_delta) > spec.delta_tol:
                 continue
             b, a = float(r["bid"]), float(r["ask"])
             m = (a + b) / 2
             if m <= 0 or (a - b) / m > spec.max_rel_spread:
                 continue
-            d = abs(ad - spec.short_delta)
-            if best is None or d < best[0]:
-                best = (d, r)
+            if spec.no_delta:
+                k = float(r["strike"])
+                spot = float(r["underlying_price"] or 0)
+                if spot <= 0:
+                    continue
+                # must be out of the money on the correct side
+                if right == "PUT" and k >= spot:
+                    continue
+                if right == "CALL" and k <= spot:
+                    continue
+                score = -m          # maximise mid credit -> best premium/width
+                if best is None or score < best[0]:
+                    best = (score, r)
+            else:
+                ad = abs(float(r["delta"] or 0))
+                if abs(ad - spec.short_delta) > spec.delta_tol:
+                    continue
+                d = abs(ad - spec.short_delta)
+                if best is None or d < best[0]:
+                    best = (d, r)
         return best[1] if best else None
 
     def pick_long(right: str, short_strike: float):
@@ -585,12 +648,18 @@ def run(db: str, spec: Spec) -> list[dict]:
             # 80% of max profit == debit <= 20% of credit
             if dbt <= p.credit * (1.0 - spec.profit_target):
                 reason = "TAKE_PROFIT"
-            elif spec.exit_at_dte >= 0 and dte <= spec.exit_at_dte:
-                # Gamma-avoidance exit: leave before the final days, when a
-                # short put's delta swings hardest against a small spot move.
-                reason = f"GAMMA_EXIT_DTE{spec.exit_at_dte}"
-            elif (not spec.hold_to_expiry) and dte <= spec.exit_days_before_expiry:
-                reason = "PRE_EXPIRY_EXIT"
+            else:
+                # Per-side exit cutoff. The asymmetric spec exits its short-
+                # dated put leg one day later (1 DTE) than its call leg (2 DTE),
+                # so the cutoff is resolved from the position's own side.
+                _cut = spec.exit_at_dte
+                if (spec.trend_mode or "") == "asym":
+                    _cut = (spec.put_exit_dte if p.structure == "bull_put"
+                            else spec.exit_at_dte)
+                if _cut >= 0 and dte <= _cut:
+                    reason = f"EOD_EXIT_DTE{_cut}"
+                elif (not spec.hold_to_expiry) and dte <= spec.exit_days_before_expiry:
+                    reason = "PRE_EXPIRY_EXIT"
 
             if reason:
                 p.exit_date, p.exit_debit, p.exit_reason = td, dbt, reason
