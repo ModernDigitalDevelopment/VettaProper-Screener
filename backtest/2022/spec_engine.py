@@ -46,6 +46,8 @@ SECTORS: dict[str, str] = {}
 # Dates on which the A/D line closed below its prior reaction low. Populated
 # by the caller; used only when spec.breach_exit_lag >= 0.
 BREACH: set[str] = set()
+# Keltner-squeeze state per (symbol, date); used when spec.require_squeeze.
+SQUEEZE: dict[tuple[str, str], dict] = {}
 
 
 @dataclass(frozen=True)
@@ -72,6 +74,11 @@ class Spec:
     # exists from 2022-10-18. Set this to restrict to rows with a full
     # window; leave False to include shortened-warm-up rows (flagged).
     require_true_sma200: bool = False
+    # --- Keltner squeeze (condor range filter) ---------------------------
+    # Bollinger(20,2s) contained inside Keltner(20,1.5xATR): compressed
+    # volatility. Hypothesis is that it suits condors, which want the
+    # underlying to stay inside the short strikes.
+    require_squeeze: bool = False
     # --- asymmetric spec (trend_mode="asym") -----------------------------
     # Different entry AND exit rules per side, because the two sides are not
     # mirror images: 2022 Q2 showed calls into strength worked while puts into
@@ -416,6 +423,12 @@ def build(rows, spec: Spec, today: date, rng: random.Random):
         else:
             raise ValueError(f"unknown trend_mode {mode}")
 
+    # --- Keltner squeeze ---------------------------------------------------
+    if spec.require_squeeze:
+        sq = SQUEEZE.get((sym, rows[0]["trade_date"]))
+        if not sq or not sq.get("kc_squeeze"):
+            return None
+
     # --- HV vs IV: sell premium when realised vol is running ABOVE implied --
     if spec.require_hv_gt_iv or spec.min_hv_minus_iv:
         hv = HVIV.get((sym, rows[0]["trade_date"]))
@@ -586,6 +599,14 @@ def build(rows, spec: Spec, today: date, rng: random.Random):
         legs["call_short"] = float(cs["strike"]); legs["call_long"] = float(cl_row["strike"])
         widths.append(cw)
 
+    # A real condor needs the short call strictly ABOVE the short put. At
+    # delta 0.50 both converge on the ATM strike (measured: 124 of 125 pairs
+    # had call_short <= put_short), which is a short straddle with inverted
+    # wings, NOT a condor -- and its max loss is not the wider wing, so the
+    # sizing below would understate risk. Reject rather than mis-price.
+    if side == "iron_condor":
+        if legs["call_short"] <= legs["put_short"]:
+            return None
     width = max(widths)   # condor max loss is the wider wing
     if credit < spec.min_credit or credit >= width:
         return None
