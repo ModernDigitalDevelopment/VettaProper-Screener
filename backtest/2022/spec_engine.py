@@ -67,6 +67,11 @@ class Spec:
     # -1 = ignore breaches. 0/1/2 = close open positions on the breach day,
     # or 1/2 sessions later ("within 1-2 trading sessions").
     breach_exit_lag: int = -1
+    # --- golden cross (trend_mode="golden") ------------------------------
+    # The 2022 file starts 2022-01-03, so a TRUE 200-session average only
+    # exists from 2022-10-18. Set this to restrict to rows with a full
+    # window; leave False to include shortened-warm-up rows (flagged).
+    require_true_sma200: bool = False
     # --- asymmetric spec (trend_mode="asym") -----------------------------
     # Different entry AND exit rules per side, because the two sides are not
     # mirror images: 2022 Q2 showed calls into strength worked while puts into
@@ -305,7 +310,16 @@ def build(rows, spec: Spec, today: date, rng: random.Random):
     # Done BEFORE the trend gate so the gate can point the same way as the
     # trade. Returns the concrete side in `side` and leaves spec untouched.
     side = spec.structure
-    if (spec.trend_mode or "") == "asym":
+    if (spec.trend_mode or "") == "golden":
+        # Golden/death cross side selection: sma50 > sma200 -> bull put,
+        # sma50 < sma200 -> bear call. Per symbol, not market-wide.
+        tr0 = TREND.get((sym, rows[0]["trade_date"]))
+        if not tr0 or "sma200" not in tr0:
+            return None
+        if spec.require_true_sma200 and not tr0.get("sma200_true"):
+            return None
+        side = "bull_put" if tr0["sma50"] > tr0["sma200"] else "bear_call"
+    elif (spec.trend_mode or "") == "asym":
         tr0 = TREND.get((sym, rows[0]["trade_date"]))
         if not tr0:
             return None
@@ -368,7 +382,7 @@ def build(rows, spec: Spec, today: date, rng: random.Random):
             return None          # genuinely undecided -> no trade
 
     mode = spec.trend_mode or ("s10_50" if spec.require_trend else "")
-    if mode in ("auto", "revert", "asym"):
+    if mode in ("auto", "revert", "asym", "golden"):
         # the side choice above already encodes the entry condition
         mode = "none"
     if mode and mode != "none":
