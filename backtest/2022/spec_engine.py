@@ -709,6 +709,19 @@ def run(db: str, spec: Spec) -> list[dict]:
 
             dbt = close_debit(bk, p, td, at_mid)
             if dbt is None:
+                # No quote for at least one leg today. Previously this skipped
+                # the whole exit block, so a position past its exit_at_dte
+                # cutoff stayed open and drifted to expiry -- measured: ALL 44
+                # EXPIRED trades in the tuned 2023 condor run had run their
+                # full DTE despite exit_at_dte=1. Expiry carries -40% RoR vs
+                # +10% for an EOD exit, so this silently removed the single
+                # largest edge in the data.
+                #
+                # A real desk cannot fill without a quote either, so the
+                # position genuinely cannot be closed today; but it must be
+                # retried every subsequent session rather than abandoned.
+                # Flag it so the frequency is visible instead of invisible.
+                p.missed_exits = getattr(p, "missed_exits", 0) + 1
                 still.append(p); continue
 
             reason = None
