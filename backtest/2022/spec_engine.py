@@ -55,6 +55,11 @@ class Spec:
     # would have sat out exactly the months that made money.
     switch_mode: str = "sma50"       # sma50 | rsi | dmi
     switch_rsi: float = 50.0
+    # --- contrarian mean reversion (trend_mode="revert") -----------------
+    # Keys on the SIZE of a 5/20 SMA dislocation, not its sign: stretched up
+    # -> sell calls, washed out -> sell puts. Unlike a trend filter this is
+    # not structurally a direction bet, so it need not invert with the tape.
+    revert_pct: float = 10.0
     short_delta: float = 0.20
     delta_tol: float = 0.05
     width: float = 5.0
@@ -253,7 +258,20 @@ def build(rows, spec: Spec, today: date, rng: random.Random):
     # Done BEFORE the trend gate so the gate can point the same way as the
     # trade. Returns the concrete side in `side` and leaves spec untouched.
     side = spec.structure
-    if side == "auto":
+    if (spec.trend_mode or "") == "revert":
+        tr0 = TREND.get((sym, rows[0]["trade_date"]))
+        if not tr0:
+            return None
+        g = tr0.get("gap5_20")
+        if g is None:
+            return None
+        if g >= spec.revert_pct:
+            side = "bear_call"       # stretched above: sell the rally
+        elif g <= -spec.revert_pct:
+            side = "bull_put"        # washed out: sell the panic
+        else:
+            return None              # inside the band: no dislocation, no trade
+    elif side == "auto":
         td0 = rows[0]["trade_date"]
         tr0 = TREND.get((sym, td0))
         if not tr0:
@@ -285,8 +303,8 @@ def build(rows, spec: Spec, today: date, rng: random.Random):
             return None          # genuinely undecided -> no trade
 
     mode = spec.trend_mode or ("s10_50" if spec.require_trend else "")
-    if mode == "auto":
-        # mirror the chosen side; "auto" already proved the condition above
+    if mode in ("auto", "revert"):
+        # the side choice above already encodes the entry condition
         mode = "none"
     if mode and mode != "none":
         tr = TREND.get((sym, rows[0]["trade_date"]))
@@ -541,6 +559,19 @@ def run(db: str, spec: Spec) -> list[dict]:
 
             # expiry settlement
             if dte <= 0:
+                # exit_friday_open: close on the expiration date rather than
+                # letting it settle at intrinsic. CAVEAT: ThetaData EOD carries
+                # ONE quote snapshot per contract-day, so this is the expiry-day
+                # EOD bid/ask, not a true opening print. It is therefore a
+                # LOWER bound on an open-based exit -- by the close, more of the
+                # day's adverse move is already in the price. Treat any
+                # improvement it shows as conservative.
+                if spec.exit_friday_open:
+                    dbt = close_debit(bk, p, td, at_mid)
+                    if dbt is not None:
+                        p.exit_date, p.exit_debit = td, dbt
+                        p.exit_reason = "EXPIRY_DAY_CLOSE_PROXY"
+                        closed.append(p.result(spec)); continue
                 spot = last_spot.get(p.symbol, 0.0)
                 dbt = intrinsic_at_expiry(p, spot) if spot else p.credit
                 p.exit_date, p.exit_debit, p.exit_reason = td, dbt, "EXPIRED"
