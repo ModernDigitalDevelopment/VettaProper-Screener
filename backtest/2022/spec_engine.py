@@ -43,6 +43,9 @@ def _has_event(symbol: str, d0: str, days: int, types: tuple[str, ...]) -> bool:
             return True
     return False
 SECTORS: dict[str, str] = {}
+# Dates on which the A/D line closed below its prior reaction low. Populated
+# by the caller; used only when spec.breach_exit_lag >= 0.
+BREACH: set[str] = set()
 
 
 @dataclass(frozen=True)
@@ -60,6 +63,10 @@ class Spec:
     # -> sell calls, washed out -> sell puts. Unlike a trend filter this is
     # not structurally a direction bet, so it need not invert with the tape.
     revert_pct: float = 10.0
+    # --- A/D breach management (user execution protocol) -----------------
+    # -1 = ignore breaches. 0/1/2 = close open positions on the breach day,
+    # or 1/2 sessions later ("within 1-2 trading sessions").
+    breach_exit_lag: int = -1
     # --- asymmetric spec (trend_mode="asym") -----------------------------
     # Different entry AND exit rules per side, because the two sides are not
     # mirror images: 2022 Q2 showed calls into strength worked while puts into
@@ -171,6 +178,31 @@ def rank_score(p) -> float:
             + c["delta"] * dl
             + c["delta2"] * dl * dl
             + c["rr_delta"] * rr * dl)
+
+
+# Full trading calendar, needed to convert "1-2 sessions after a breach" into
+# actual dates. Populated by the caller alongside BREACH.
+SESSIONS: list[str] = []
+_SIDX: dict[str, int] = {}
+
+
+def _breach_hit(td: str, lag: int) -> bool:
+    """True if td is exactly `lag` sessions after an A/D reaction-low breach.
+
+    Session-based rather than calendar-based, so a Friday breach with lag 1
+    fires the following Monday, not a non-trading Saturday.
+    """
+    if not BREACH:
+        return False
+    if lag == 0:
+        return td in BREACH
+    if not _SIDX:
+        _SIDX.update({d: i for i, d in enumerate(SESSIONS)})
+    i = _SIDX.get(td)
+    if i is None:
+        # no calendar loaded: fall back to same-day so the rule still fires
+        return td in BREACH
+    return i - lag >= 0 and SESSIONS[i - lag] in BREACH
 
 
 def _d(s: str) -> date:
@@ -648,6 +680,11 @@ def run(db: str, spec: Spec) -> list[dict]:
             # 80% of max profit == debit <= 20% of credit
             if dbt <= p.credit * (1.0 - spec.profit_target):
                 reason = "TAKE_PROFIT"
+            elif spec.breach_exit_lag >= 0 and _breach_hit(td, spec.breach_exit_lag):
+                # A/D line closed below its prior reaction low: the user's
+                # protocol treats this as an immediate management trigger on
+                # short-put risk, ahead of any price-based stop.
+                reason = "AD_BREACH_EXIT"
             else:
                 # Per-side exit cutoff. The asymmetric spec exits its short-
                 # dated put leg one day later (1 DTE) than its call leg (2 DTE),
