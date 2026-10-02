@@ -27,12 +27,20 @@ EVENTS: dict[str, list] = {}
 VIX: dict[str, float] = {}
 
 
-def _has_event(symbol: str, d0: str, days: int, types: tuple[str, ...]) -> bool:
-    """True if an event of the given types falls within [d0, d0+days]."""
-    if not types or days <= 0:
+def _has_event(symbol: str, d0: str, days: int, types: tuple[str, ...],
+               before: int = 0) -> bool:
+    """True if an event of the given types falls within [d0-before, d0+days].
+
+    `before` covers post-event blackout: an earnings gap can leave the
+    underlying re-pricing for days afterwards, so entering just AFTER a print
+    is its own risk, not a safe window. Default 0 keeps the original
+    forward-only behaviour for every earlier test.
+    """
+    if not types or (days <= 0 and before <= 0):
         return False
-    a = datetime.strptime(d0[:10], "%Y-%m-%d").date()
-    b = a + timedelta(days=days)
+    a0 = datetime.strptime(d0[:10], "%Y-%m-%d").date()
+    a = a0 - timedelta(days=before)
+    b = a0 + timedelta(days=days)
     for ds, tp in EVENTS.get(symbol, ()):  # pre-sorted
         if tp not in types:
             continue
@@ -48,6 +56,10 @@ SECTORS: dict[str, str] = {}
 BREACH: set[str] = set()
 # Keltner-squeeze state per (symbol, date); used when spec.require_squeeze.
 SQUEEZE: dict[tuple[str, str], dict] = {}
+# Timing gate: (scope, date) -> True means DO NOT open new positions.
+# scope is "MARKET" for a market-wide gate, or a sector name for a micro
+# gate. Purely an ON/OFF entry filter -- it never flips the trade side.
+GATE: dict[tuple[str, str], bool] = {}
 
 
 @dataclass(frozen=True)
@@ -79,6 +91,13 @@ class Spec:
     # volatility. Hypothesis is that it suits condors, which want the
     # underlying to stay inside the short strikes.
     require_squeeze: bool = False
+    # Days AFTER an event to keep blocking. The original blackout looked
+    # forward only; a post-earnings gap keeps re-pricing for days, so
+    # entering just after a print is its own risk.
+    blackout_days_after_event: int = 0
+    # "" = no gate | "market" = block all entries on gated days |
+    # "sector" = block only symbols whose own sector is gated
+    gate_mode: str = ""
     # --- asymmetric spec (trend_mode="asym") -----------------------------
     # Different entry AND exit rules per side, because the two sides are not
     # mirror images: 2022 Q2 showed calls into strength worked while puts into
@@ -311,7 +330,8 @@ def build(rows, spec: Spec, today: date, rng: random.Random):
             return None
     if spec.earnings_blackout_days > 0:
         types = ("EARNINGS", "EX_DIV") if spec.blackout_exdiv else ("EARNINGS",)
-        if _has_event(sym, rows[0]["trade_date"], spec.earnings_blackout_days, types):
+        if _has_event(sym, rows[0]["trade_date"], spec.earnings_blackout_days,
+                      types, before=spec.blackout_days_after_event):
             return None
     # --- resolve structure="auto" to a side, per symbol -------------------
     # Done BEFORE the trend gate so the gate can point the same way as the
@@ -422,6 +442,22 @@ def build(rows, spec: Spec, today: date, rng: random.Random):
                 return None
         else:
             raise ValueError(f"unknown trend_mode {mode}")
+
+    # --- A/D timing gate ---------------------------------------------------
+    # Stand-down filter. Blocks NEW entries only; open positions are managed
+    # by the normal exit rules, so this tests entry timing in isolation.
+    if spec.gate_mode:
+        _td = rows[0]["trade_date"]
+        if spec.gate_mode == "market":
+            if GATE.get(("MARKET", _td)):
+                return None
+        elif spec.gate_mode == "sector":
+            if GATE.get((SECTORS.get(sym, "UNKNOWN"), _td)):
+                return None
+        elif spec.gate_mode == "both":
+            if GATE.get(("MARKET", _td)) or GATE.get(
+                    (SECTORS.get(sym, "UNKNOWN"), _td)):
+                return None
 
     # --- Keltner squeeze ---------------------------------------------------
     if spec.require_squeeze:
