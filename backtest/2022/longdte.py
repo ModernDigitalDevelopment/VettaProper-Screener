@@ -25,7 +25,11 @@ import json, pickle, sys
 import spec_engine as E
 from run2022 import BASE, metrics
 
-DB = "/home/user/db2023/thetadata_options_q2_2023.db"
+import os
+DB = os.environ.get("LDTE_DB",
+                   "/home/user/db2023/thetadata_options_q2_2023.db")
+YEAR = int(os.environ.get("LDTE_YEAR", "2023"))
+TAG = os.environ.get("LDTE_TAG", "2023Q2")
 
 SPEC = dict(BASE)
 SPEC.update(
@@ -51,7 +55,8 @@ def load():
     for d in (E.TREND, E.INDICATORS, E.HVIV, E.EVENTS, E.SECTORS,
               E.SIGNALS, E.SQUEEZE, E.GATE):
         d.clear()
-    E.TREND.update(pickle.load(open("trend23.pkl", "rb")))
+    E.TREND.update(pickle.load(open(
+        "trend23.pkl" if YEAR == 2023 else "trend22.pkl", "rb")))
     E.EVENTS.update(pickle.load(open("events.pkl", "rb")))
     E.SECTORS.update(json.load(open("sectors_2022.json")))
     E.SIGNALS.update({k: {"ivrv": 1.0, "ts": 1.0} for k in E.TREND})
@@ -85,7 +90,7 @@ def main():
     load()
     out = {}
     print("=" * 104)
-    print("Q2 2023 -- BULL PUTS, 35-45 DTE ENTRY / 10-15 DTE EXIT")
+    print(f"{TAG} -- BULL PUTS, 35-45 DTE ENTRY / 10-15 DTE EXIT")
     print("=" * 104)
     print("\nreference: the short-dated spec")
     out["short"] = run("7-11 DTE entry, exit 2 DTE",
@@ -102,8 +107,8 @@ def main():
         out[f"g{p}"] = run(f"35-45 DTE, exit 12, gate p{p}",
                            gate_pct=p, target_dte=40, dte_tol=5, exit_at_dte=12)
     pickle.dump({k: (v[1], v[2], v[3], v[4]) for k, v in out.items()},
-                open("r_longdte.pkl", "wb"))
-    print("\nwrote r_longdte.pkl")
+                open(f"r_longdte_{TAG}.pkl", "wb"))
+    print(f"\nwrote r_longdte_{TAG}.pkl")
 
 
 if __name__ == "__main__":
