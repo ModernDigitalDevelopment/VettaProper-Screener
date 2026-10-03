@@ -1,0 +1,111 @@
+########## 2022Q1 ##########
+==========================================================================================================
+STOP LOSS AT A MULTIPLE OF CREDIT -- 2022Q1
+1.0x = close when the loss equals the credit (the user's rule)
+==========================================================================================================
+
+short 7-11 DTE, exit 2
+    no stop (control)              n=  63 win= 63.5% net=   -1,566 pf=0.93 ror=  -0.81% L/W=1.87 dd= 23.7% stops=  0
+    stop at 0.5x credit            n=  75 win= 46.7% net=   -4,063 pf=0.81 ror=  -2.13% L/W=1.08 dd= 22.1% stops= 33
+    stop at 1x credit              n=  68 win= 54.4% net=   -5,374 pf=0.77 ror=  -3.18% L/W=1.54 dd= 24.9% stops= 20
+    stop at 1.5x credit            n=  64 win= 60.9% net=   -1,033 pf=0.95 ror=  -0.34% L/W=1.64 dd= 19.7% stops= 11
+    stop at 2x credit              n=  64 win= 62.5% net=   -1,315 pf=0.94 ror=  -0.59% L/W=1.78 dd= 20.9% stops=  9
+
+long 35-45 DTE, exit 15
+    no stop (control)              n=  30 win= 56.7% net=   +1,085 pf=1.12 ror=  +1.90% L/W=1.17 dd= 11.2% stops=  0
+    stop at 0.5x credit            n=  45 win= 42.2% net=   -1,967 pf=0.86 ror=  -1.39% L/W=0.85 dd= 22.4% stops= 22
+    stop at 1x credit              n=  38 win= 57.9% net=   +1,980 pf=1.17 ror=  +2.48% L/W=1.18 dd= 18.5% stops= 12
+    stop at 1.5x credit            n=  35 win= 65.7% net=   +3,761 pf=1.38 ror=  +5.03% L/W=1.39 dd= 13.7% stops=  7
+    stop at 2x credit              n=  31 win= 61.3% net=   +1,460 pf=1.14 ror=  +2.61% L/W=1.39 dd= 11.0% stops=  5
+
+wrote r_stop_2022Q1.pkl
+########## done 2022Q1 rc=0 ##########
+########## 2022Q3 ##########
+==========================================================================================================
+STOP LOSS AT A MULTIPLE OF CREDIT -- 2022Q3
+1.0x = close when the loss equals the credit (the user's rule)
+==========================================================================================================
+
+short 7-11 DTE, exit 2
+    no stop (control)              n= 133 win= 52.6% net=  -23,602 pf=0.59 ror=  -8.11% L/W=1.88 dd= 63.4% stops=  0
+    stop at 0.5x credit            n= 159 win= 44.0% net=  -31,015 pf=0.55 ror=  -8.76% L/W=1.44 dd= 68.4% stops= 78
+    stop at 1x credit              n= 146 win= 48.6% net=  -40,200 pf=0.46 ror= -11.94% L/W=2.05 dd= 88.0% stops= 50
+    stop at 1.5x credit            n= 139 win= 51.8% net=  -32,130 pf=0.53 ror= -10.17% L/W=2.04 dd= 73.1% stops= 30
+    stop at 2x credit              n= 134 win= 53.0% net=  -33,117 pf=0.51 ror= -10.80% L/W=2.21 dd= 74.6% stops= 24
+
+long 35-45 DTE, exit 15
+    no stop (control)              n=  43 win= 55.8% net=     -438 pf=0.97 ror=  -0.47% L/W=1.30 dd= 20.9% stops=  0
+    stop at 0.5x credit            n=  53 win= 45.3% net=   -1,058 pf=0.93 ror=  -1.58% L/W=0.89 dd= 16.3% stops= 20
+    stop at 1x credit              n=  46 win= 52.2% net=     -841 pf=0.94 ror=  -0.99% L/W=1.16 dd= 16.7% stops=  8
+    stop at 1.5x credit            n=  44 win= 54.5% net=     +426 pf=1.03 ror=  +0.46% L/W=1.17 dd= 17.2% stops=  3
+    stop at 2x credit              n=  44 win= 54.5% net=   -1,321 pf=0.92 ror=  -1.34% L/W=1.31 dd= 22.6% stops=  3
+
+wrote r_stop_2022Q3.pkl
+########## done 2022Q3 rc=0 ##########
+########## 2022Q4 ##########
+==========================================================================================================
+STOP LOSS AT A MULTIPLE OF CREDIT -- 2022Q4
+1.0x = close when the loss equals the credit (the user's rule)
+==========================================================================================================
+
+short 7-11 DTE, exit 2
+    no stop (control)              n= 121 win= 65.3% net=  -11,867 pf=0.78 ror=  -4.16% L/W=2.40 dd= 52.0% stops=  0
+    stop at 0.5x credit            n= 143 win= 56.6% net=   +1,074 pf=1.02 ror=  +0.44% L/W=1.28 dd= 27.2% stops= 55
+    stop at 1x credit              n= 137 win= 64.2% net=   -3,256 pf=0.94 ror=  -0.82% L/W=1.91 dd= 36.8% stops= 42
+    stop at 1.5x credit            n= 129 win= 66.7% net=   -1,368 pf=0.97 ror=  -0.48% L/W=2.06 dd= 31.0% stops= 25
+    stop at 2x credit              n= 127 win= 69.3% net=     -667 pf=0.99 ror=  -0.25% L/W=2.29 dd= 30.5% stops= 20
+
+long 35-45 DTE, exit 15
+    no stop (control)              n=  41 win= 65.9% net=   +3,546 pf=1.30 ror=  +3.64% L/W=1.48 dd=  6.9% stops=  0
+    stop at 0.5x credit            n=  61 win= 52.5% net=     +283 pf=1.02 ror=  -0.11% L/W=1.09 dd= 12.2% stops= 26
+    stop at 1x credit              n=  50 win= 56.0% net=   +1,307 pf=1.08 ror=  +1.19% L/W=1.18 dd= 10.0% stops= 14
+    stop at 1.5x credit            n=  43 win= 67.4% net=   +4,252 pf=1.35 ror=  +4.21% L/W=1.53 dd=  7.9% stops=  5
+    stop at 2x credit              n=  41 win= 65.9% net=   +3,546 pf=1.30 ror=  +3.64% L/W=1.48 dd=  6.9% stops=  0
+
+wrote r_stop_2022Q4.pkl
+########## done 2022Q4 rc=0 ##########
+########## 2023Q2 ##########
+==========================================================================================================
+STOP LOSS AT A MULTIPLE OF CREDIT -- 2023Q2
+1.0x = close when the loss equals the credit (the user's rule)
+==========================================================================================================
+
+short 7-11 DTE, exit 2
+    no stop (control)              n= 140 win= 71.4% net=  +16,182 pf=1.45 ror=  +5.64% L/W=1.72 dd= 15.1% stops=  0
+    stop at 0.5x credit            n= 156 win= 60.3% net=   +8,233 pf=1.18 ror=  +2.52% L/W=1.28 dd= 22.3% stops= 55
+    stop at 1x credit              n= 148 win= 65.5% net=   +6,767 pf=1.15 ror=  +2.40% L/W=1.66 dd= 27.2% stops= 39
+    stop at 1.5x credit            n= 144 win= 70.1% net=  +14,630 pf=1.38 ror=  +5.03% L/W=1.70 dd= 14.9% stops= 18
+    stop at 2x credit              n= 138 win= 70.3% net=  +15,134 pf=1.43 ror=  +5.42% L/W=1.66 dd= 13.7% stops= 11
+
+long 35-45 DTE, exit 15
+    no stop (control)              n=  41 win= 73.2% net=  +11,593 pf=2.42 ror= +12.28% L/W=1.12 dd=  6.4% stops=  0
+    stop at 0.5x credit            n=  46 win= 67.4% net=  +14,875 pf=3.13 ror= +14.26% L/W=0.66 dd=  5.0% stops= 12
+    stop at 1x credit              n=  42 win= 71.4% net=  +13,005 pf=3.04 ror= +13.97% L/W=0.82 dd=  3.8% stops=  4
+    stop at 1.5x credit            n=  41 win= 73.2% net=  +11,924 pf=2.58 ror= +12.99% L/W=1.06 dd=  6.4% stops=  1
+    stop at 2x credit              n=  41 win= 73.2% net=  +11,593 pf=2.42 ror= +12.28% L/W=1.12 dd=  6.4% stops=  1
+
+wrote r_stop_2023Q2.pkl
+########## done 2023Q2 rc=0 ##########
+########## 2023Q4 ##########
+==========================================================================================================
+STOP LOSS AT A MULTIPLE OF CREDIT -- 2023Q4
+1.0x = close when the loss equals the credit (the user's rule)
+==========================================================================================================
+
+short 7-11 DTE, exit 2
+    no stop (control)              n= 136 win= 72.1% net=  +21,421 pf=1.60 ror=  +7.46% L/W=1.61 dd= 18.6% stops=  0
+    stop at 0.5x credit            n= 162 win= 65.4% net=  +30,374 pf=1.85 ror=  +8.65% L/W=1.02 dd= 15.3% stops= 45
+    stop at 1x credit              n= 147 win= 69.4% net=  +25,419 pf=1.67 ror=  +8.05% L/W=1.35 dd= 17.2% stops= 30
+    stop at 1.5x credit            n= 141 win= 70.2% net=  +20,175 pf=1.50 ror=  +6.89% L/W=1.57 dd= 26.6% stops= 21
+    stop at 2x credit              n= 140 win= 72.1% net=  +26,273 pf=1.77 ror=  +8.79% L/W=1.46 dd= 20.1% stops= 10
+
+long 35-45 DTE, exit 15
+    no stop (control)              n=  42 win= 73.8% net=  +17,218 pf=4.12 ror= +17.90% L/W=0.68 dd=  7.4% stops=  0
+    stop at 0.5x credit            n=  50 win= 64.0% net=  +12,853 pf=2.42 ror= +10.85% L/W=0.73 dd=  9.8% stops= 13
+    stop at 1x credit              n=  46 win= 69.6% net=  +12,904 pf=2.53 ror= +10.93% L/W=0.90 dd= 10.4% stops=  7
+    stop at 1.5x credit            n=  45 win= 80.0% net=  +21,778 pf=5.14 ror= +20.31% L/W=0.78 dd=  9.1% stops=  3
+    stop at 2x credit              n=  42 win= 73.8% net=  +16,613 pf=3.70 ror= +16.76% L/W=0.76 dd=  9.0% stops=  1
+
+wrote r_stop_2023Q4.pkl
+########## done 2023Q4 rc=0 ##########
+ALL DONE
